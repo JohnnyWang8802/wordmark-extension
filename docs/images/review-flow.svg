@@ -1,0 +1,19 @@
+<svg width="760" height="560" viewBox="0 0 760 560" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="760" height="560" rx="24" fill="#FDFCFA"/>
+  <rect x="58" y="52" width="644" height="456" rx="18" fill="#FDFCFA" stroke="#EDE2D7"/>
+  <text x="318" y="98" fill="#2C2418" font-family="Inter, Arial, sans-serif" font-size="18" font-weight="800">Review</text>
+  <text x="331" y="126" fill="#8C7E6E" font-family="Inter, Arial, sans-serif" font-size="13">1 / 8</text>
+  <rect x="132" y="158" width="496" height="250" rx="20" fill="#F9F6F1" stroke="#EDE2D7"/>
+  <text x="279" y="228" fill="#2C2418" font-family="Georgia, serif" font-size="48" font-weight="700">maritime</text>
+  <text x="316" y="267" fill="#8C7E6E" font-family="Inter, Arial, sans-serif" font-size="18">/mae-ruh-time/</text>
+  <line x1="184" y1="302" x2="576" y2="302" stroke="#EDE2D7"/>
+  <text x="188" y="344" fill="#C87B4A" font-family="Inter, Arial, sans-serif" font-size="18" font-weight="700">adjective.</text>
+  <text x="288" y="344" fill="#2C2418" font-family="Inter, Arial, sans-serif" font-size="18">Relating to or connected with the sea.</text>
+  <text x="188" y="376" fill="#8C7E6E" font-family="Inter, Arial, sans-serif" font-size="17">海上的，海事的</text>
+  <rect x="132" y="438" width="136" height="48" rx="12" fill="#FDFCFA" stroke="#D9C5B2"/>
+  <text x="178" y="469" fill="#8C7E6E" font-family="Inter, Arial, sans-serif" font-size="16" font-weight="700">Again</text>
+  <rect x="312" y="438" width="136" height="48" rx="12" fill="#FDFCFA" stroke="#D9C5B2"/>
+  <text x="362" y="469" fill="#8C7E6E" font-family="Inter, Arial, sans-serif" font-size="16" font-weight="700">Hard</text>
+  <rect x="492" y="438" width="136" height="48" rx="12" fill="#CD7A45"/>
+  <text x="537" y="469" fill="white" font-family="Inter, Arial, sans-serif" font-size="16" font-weight="800">Got it</text>
+</svg>
