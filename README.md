@@ -20,7 +20,7 @@ It is designed for learners who want to save words in context instead of copying
 
 | Vocabulary notebook | Review flow |
 | --- | --- |
-| ![WordMark popup vocabulary notebook](docs/images/popup-today.svg) | ![WordMark review flow](docs/images/review-flow.svg) |
+| ![WordMark popup vocabulary notebook](docs/images/popup-today.png) | ![WordMark review flow](docs/images/review-flow.svg) |
 
 | AI lookup settings |
 | --- |
