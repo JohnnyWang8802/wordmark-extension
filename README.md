@@ -4,7 +4,7 @@ WordMark is a Chrome MV3 extension for capturing, organizing, and reviewing Engl
 
 It is designed for learners who want to save words in context instead of copying them into a separate notebook later.
 
-![WordMark lookup bubble](docs/images/lookup-bubble.svg)
+![WordMark lookup bubble](docs/images/lookup-bubble.png)
 
 ## What It Does
 
@@ -149,4 +149,3 @@ tests/               Unit tests
 ## Notes
 
 The extension uses third-party dictionary, translation, and TTS endpoints. Requests include timeout handling, temporary-failure caching, and rate limiting to avoid repeated failed calls.
-
