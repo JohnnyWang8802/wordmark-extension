@@ -54,6 +54,7 @@ export async function lookupWord(word: string): Promise<DictionaryResult | null>
           definitions.push({
             partOfSpeech: meaning.partOfSpeech || '',
             meaning: meaning.definitions[0].definition || '',
+            source: 'dictionary',
           });
         }
       }
@@ -70,6 +71,7 @@ export async function lookupWord(word: string): Promise<DictionaryResult | null>
       phoneticUK,
       audioUrl,
       audioUrlUK,
+      source: 'dictionary',
       definitions: defsWithZh,
     };
   } catch (error) {

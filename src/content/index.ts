@@ -1,6 +1,63 @@
-import { cleanSelection, lemmatize } from '../utils/lemmatizer';
-import { extractSentence } from '../utils/context-extractor';
 import type { DictionaryResult, Settings, VocabWord } from '../types';
+
+function cleanSelection(text: string): string {
+  return text.replace(/^[\s\p{P}]+|[\s\p{P}]+$/gu, '').trim();
+}
+
+function lemmatize(word: string): string {
+  const lower = cleanSelection(word).toLowerCase();
+  if (lower.length <= 2) return lower;
+  if (lower.endsWith('ies') && lower.length > 4) return lower.slice(0, -3) + 'y';
+  if (
+    lower.endsWith('ses') ||
+    lower.endsWith('xes') ||
+    lower.endsWith('zes') ||
+    lower.endsWith('ches') ||
+    lower.endsWith('shes')
+  ) {
+    return lower.slice(0, -2);
+  }
+  if (lower.endsWith('s') && !lower.endsWith('ss') && lower.length > 3) return lower.slice(0, -1);
+  return lower;
+}
+
+function extractSentence(word: string, anchorNode: Node | null): string {
+  if (!anchorNode) return '';
+  const parent = anchorNode.nodeType === Node.TEXT_NODE
+    ? anchorNode.parentElement
+    : anchorNode as HTMLElement;
+  if (!parent) return '';
+
+  let container: HTMLElement = parent;
+  const inlineElements = new Set([
+    'A', 'ABBR', 'ACRONYM', 'B', 'BDO', 'BIG', 'BR', 'BUTTON', 'CITE',
+    'CODE', 'DFN', 'EM', 'I', 'IMG', 'INPUT', 'KBD', 'LABEL', 'MAP',
+    'OBJECT', 'OUTPUT', 'Q', 'SAMP', 'SCRIPT', 'SELECT', 'SMALL', 'SPAN',
+    'STRONG', 'SUB', 'SUP', 'TEXTAREA', 'TIME', 'TT', 'U', 'VAR',
+  ]);
+  while (container.parentElement && inlineElements.has(container.tagName)) {
+    container = container.parentElement;
+  }
+
+  const text = container.textContent || '';
+  const sentences = text.split(/(?<=[.!?])\s+/);
+  const lowerWord = word.toLowerCase();
+  for (const sentence of sentences) {
+    if (sentence.toLowerCase().includes(lowerWord)) {
+      const cleaned = sentence.replace(/\s+/g, ' ').trim();
+      if (cleaned.length > 200) {
+        const idx = cleaned.toLowerCase().indexOf(lowerWord);
+        const start = Math.max(0, idx - 80);
+        const end = Math.min(cleaned.length, idx + word.length + 80);
+        return `${start > 0 ? '...' : ''}${cleaned.slice(start, end).trim()}${end < cleaned.length ? '...' : ''}`;
+      }
+      return cleaned;
+    }
+  }
+
+  const trimmed = text.replace(/\s+/g, ' ').trim();
+  return trimmed.length > 200 ? `${trimmed.slice(0, 197)}...` : trimmed;
+}
 
 // Inline getInitialSR to avoid shared chunk with background service worker
 function getInitialSR() {
@@ -25,6 +82,14 @@ let bubbleEl: HTMLDivElement | null = null;
 let isShowing = false;
 let highlightStyle: HTMLStyleElement | null = null;
 let highlightRefreshTimer: ReturnType<typeof setTimeout> | null = null;
+let contentDarkMode: Settings['darkMode'] = 'system';
+let contentLanguage: Settings['language'] = 'zh';
+let systemThemeQuery: MediaQueryList | null = null;
+let onSystemThemeChange: (() => void) | null = null;
+
+const wordmarkWindow = window as Window & {
+  __wordmarkCleanupContentScript?: () => void;
+};
 
 function ensureShadowHost() {
   if (shadowHost) return;
@@ -39,8 +104,10 @@ function ensureShadowHost() {
   shadowRoot.appendChild(style);
 }
 
-// Detect user's color scheme
+// Resolve the extension theme setting. "system" still follows the page/browser preference.
 function isDarkMode(): boolean {
+  if (contentDarkMode === 'dark') return true;
+  if (contentDarkMode === 'light') return false;
   return window.matchMedia('(prefers-color-scheme: dark)').matches;
 }
 
@@ -57,17 +124,17 @@ const CONTENT_STYLES = `
 
 .wm-bubble {
   position: fixed; z-index: 2147483647; width: 340px;
-  border-radius: 14px; padding: 0;
+  border-radius: 14px; padding: 0; border: 0;
   animation: wm-bubble-in 0.25s cubic-bezier(0.22, 1, 0.36, 1);
   overflow: hidden; pointer-events: auto;
 }
 .wm-bubble.wm-light {
   background: #FDFCFA; color: #2C2418;
-  box-shadow: 0 8px 40px rgba(44,36,24,0.12), 0 0 0 1px rgba(44,36,24,0.06);
+  box-shadow: 0 2px 8px rgba(44,36,24,0.24);
 }
 .wm-bubble.wm-dark {
   background: #262320; color: #EDE8E0;
-  box-shadow: 0 8px 40px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.06);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.52);
 }
 
 @keyframes wm-bubble-in {
@@ -126,6 +193,10 @@ const CONTENT_STYLES = `
 .wm-meaning-zh { font-size: 12px; margin: 2px 0 6px 0; padding-left: 2px; }
 .wm-light .wm-meaning-zh { color: #8C7E6E; }
 .wm-dark .wm-meaning-zh { color: #9A8B7A; }
+.wm-source-row { display: flex; flex-wrap: wrap; gap: 4px; margin: 2px 0 8px; }
+.wm-source-pill { font-size: 10px; line-height: 1.2; border-radius: 999px; padding: 2px 6px; border: 1px solid; }
+.wm-light .wm-source-pill { color: #8C7E6E; border-color: #EDE8E0; background: #F9F6F1; }
+.wm-dark .wm-source-pill { color: #9A8B7A; border-color: #3D3630; background: #1C1A17; }
 
 .wm-context { padding: 10px 18px; }
 .wm-context-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 5px; font-weight: 500; }
@@ -149,6 +220,16 @@ const CONTENT_STYLES = `
 .wm-save-btn.wm-saved { background: #3D8B5F; cursor: default; }
 .wm-save-btn:disabled { background: #D4C7B5; cursor: not-allowed; }
 .wm-dark .wm-save-btn:disabled { background: #4D453D; }
+.wm-regenerate-btn {
+  flex: 0 0 auto; border: 1px solid; border-radius: 10px; background: transparent;
+  padding: 9px 10px; font-size: 12px; font-weight: 600; cursor: pointer;
+  transition: background 0.15s, border-color 0.15s; font-family: inherit;
+}
+.wm-light .wm-regenerate-btn { color: #B5693D; border-color: #E8D7C6; }
+.wm-light .wm-regenerate-btn:hover { background: #F9F1E8; border-color: #D9996A; }
+.wm-dark .wm-regenerate-btn { color: #D9996A; border-color: #5A4E42; }
+.wm-dark .wm-regenerate-btn:hover { background: #3D3630; border-color: #C87B4A; }
+.wm-regenerate-btn:disabled { opacity: 0.6; cursor: wait; }
 
 .wm-loading { padding: 28px 18px; text-align: center; font-size: 13px; }
 .wm-light .wm-loading { color: #B8A898; }
@@ -226,6 +307,103 @@ function closeBubble() {
 
 function themeClass(): string {
   return isDarkMode() ? 'wm-dark' : 'wm-light';
+}
+
+function applyBubbleTheme() {
+  if (!bubbleEl) return;
+  bubbleEl.classList.remove('wm-light', 'wm-dark');
+  bubbleEl.classList.add(themeClass());
+}
+
+function applyBubbleLanguage() {
+  if (!bubbleEl) return;
+  const contextLabel = bubbleEl.querySelector<HTMLElement>('.wm-context-label');
+  if (contextLabel) contextLabel.textContent = label('context');
+
+  const regenerateBtn = bubbleEl.querySelector<HTMLButtonElement>('.wm-regenerate-btn');
+  if (regenerateBtn && !regenerateBtn.disabled) {
+    regenerateBtn.textContent = label('useAi');
+  }
+
+  const saveBtn = bubbleEl.querySelector<HTMLButtonElement>('.wm-save-btn');
+  if (saveBtn && !saveBtn.disabled && !saveBtn.classList.contains('wm-saved')) {
+    saveBtn.textContent = label('save');
+  }
+}
+
+const CONTENT_LABELS = {
+  en: {
+    context: 'Context',
+    useAi: 'Use AI to optimize',
+    loading: 'Loading...',
+    improving: 'Improving...',
+    checkAiSettings: 'Check AI settings',
+    save: '+ Save to WordMark',
+    saving: 'Saving...',
+    saved: 'Saved!',
+    alreadySaved: 'Already saved',
+    saveFailed: 'Save failed, try again',
+    failedLookup: 'Failed to look up word',
+    noDefinition: 'No definition found for "{word}"',
+    definition: 'Definition',
+    translation: 'Translation',
+    localDictionary: 'Local dictionary',
+    freeTranslation: 'Free translation',
+    ai: 'AI',
+  },
+  zh: {
+    context: '上下文',
+    useAi: '使用 AI 优化',
+    loading: '加载中...',
+    improving: '正在优化...',
+    checkAiSettings: '检查 AI 设置',
+    save: '+ 保存到 WordMark',
+    saving: '正在保存...',
+    saved: '已保存',
+    alreadySaved: '已保存过',
+    saveFailed: '保存失败，请重试',
+    failedLookup: '查词失败',
+    noDefinition: '没有找到 “{word}” 的释义',
+    definition: '释义',
+    translation: '翻译',
+    localDictionary: '本地词典',
+    freeTranslation: '免费翻译',
+    ai: 'AI',
+  },
+} as const;
+
+function label(key: keyof typeof CONTENT_LABELS.en): string {
+  return CONTENT_LABELS[contentLanguage]?.[key] || CONTENT_LABELS.en[key];
+}
+
+async function syncContentSettings() {
+  try {
+    const settingsRes = await chrome.runtime.sendMessage({ type: 'GET_SETTINGS' });
+    const settings = settingsRes?.settings as Settings | undefined;
+    contentDarkMode = settings?.darkMode || 'system';
+    contentLanguage = settings?.language || 'zh';
+    applyBubbleTheme();
+    applyBubbleLanguage();
+  } catch {
+    contentDarkMode = 'system';
+    contentLanguage = 'zh';
+  }
+}
+
+function definitionSourceLabel(source: string | undefined): string {
+  if (source === 'ai') return label('ai');
+  if (source === 'free-translation') return label('freeTranslation');
+  return label('localDictionary');
+}
+
+function definitionSourceHtml(def: DictionaryResult['definitions'][number]): string {
+  const source = def.source || 'dictionary';
+  const labels = [`${label('definition')}: ${definitionSourceLabel(source)}`];
+  if (def.meaningZh) {
+    const translationSource = def.translationSource || (source === 'ai' ? 'ai' : 'free-translation');
+    labels.push(`${label('translation')}: ${definitionSourceLabel(translationSource)}`);
+  }
+  return `<div class="wm-source-row">${labels.map((label) => `<span class="wm-source-pill">${esc(label)}</span>`).join('')}</div>`;
 }
 
 // Sanitize text for safe HTML insertion
@@ -352,6 +530,10 @@ async function refreshSavedHighlights() {
   try {
     const settingsRes = await chrome.runtime.sendMessage({ type: 'GET_SETTINGS' });
     const settings = settingsRes?.settings as Settings | undefined;
+    contentDarkMode = settings?.darkMode || 'system';
+    contentLanguage = settings?.language || 'zh';
+    applyBubbleTheme();
+    applyBubbleLanguage();
     if (!settings?.highlightSavedWords) {
       removeSavedHighlights();
       return;
@@ -381,7 +563,7 @@ function showLoading(rect: DOMRect) {
   bubbleEl.innerHTML = `
     <div class="wm-loading">
       <div class="wm-loading-spinner"></div>
-      <div>Loading...</div>
+      <div>${esc(label('loading'))}</div>
     </div>
   `;
   positionBubble(bubbleEl, rect);
@@ -420,7 +602,7 @@ function showBubble(
 
   const defsHtml = data.definitions
     .map(d =>
-      `<p class="wm-definition"><span class="wm-pos">${esc(d.partOfSpeech)}.</span> ${esc(d.meaning)}</p>${d.meaningZh ? `<p class="wm-meaning-zh">${esc(d.meaningZh)}</p>` : ''}`
+      `<p class="wm-definition"><span class="wm-pos">${esc(d.partOfSpeech)}.</span> ${esc(d.meaning)}</p>${d.meaningZh ? `<p class="wm-meaning-zh">${esc(d.meaningZh)}</p>` : ''}${definitionSourceHtml(d)}`
     )
     .join('');
 
@@ -445,13 +627,14 @@ function showBubble(
     ${contextHtml ? `
       <div class="wm-divider"></div>
       <div class="wm-context">
-        <div class="wm-context-label">Context</div>
+        <div class="wm-context-label">${esc(label('context'))}</div>
         <p class="wm-context-text">"${contextHtml}"</p>
       </div>
     ` : ''}
     <div class="wm-divider"></div>
     <div class="wm-footer">
-      <button class="wm-save-btn" data-action="save" tabindex="0">+ Save to WordMark</button>
+      <button class="wm-regenerate-btn" data-action="regenerate" tabindex="0">${esc(label('useAi'))}</button>
+      <button class="wm-save-btn" data-action="save" tabindex="0">${esc(label('save'))}</button>
     </div>
   `;
 
@@ -485,11 +668,35 @@ function showBubble(
       }).catch(() => speakFallback(data.word));
     }
 
+    if (action === 'regenerate') {
+      const regenerateBtn = target as HTMLButtonElement;
+      regenerateBtn.disabled = true;
+      regenerateBtn.textContent = label('improving');
+      try {
+        const response = await chrome.runtime.sendMessage({
+          type: 'REGENERATE_DEFINITION',
+          word: data.word,
+          contextSentence,
+          pageTitle: document.title,
+          dictionaryResult: data,
+        });
+        if (response?.data) {
+          showBubble(rect, response.data, contextSentence, originalForm);
+        } else {
+          regenerateBtn.disabled = false;
+          regenerateBtn.textContent = label('checkAiSettings');
+        }
+      } catch {
+        regenerateBtn.disabled = false;
+        regenerateBtn.textContent = label('checkAiSettings');
+      }
+    }
+
     if (action === 'save') {
       const saveBtn = target as HTMLButtonElement;
       if (saveBtn.classList.contains('wm-saved')) return;
       saveBtn.disabled = true;
-      saveBtn.textContent = 'Saving...';
+      saveBtn.textContent = label('saving');
 
       const word: VocabWord = {
         id: crypto.randomUUID(),
@@ -519,17 +726,17 @@ function showBubble(
             <svg style="width:16px;height:16px;vertical-align:middle;margin-right:4px;" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
               <path d="M5 13l4 4L19 7" style="stroke-dasharray:20;animation:wm-check-draw 0.3s ease-out forwards;"/>
             </svg>
-            ${response.duplicate ? 'Already saved' : 'Saved!'}
+            ${response.duplicate ? esc(label('alreadySaved')) : esc(label('saved'))}
           `;
           scheduleHighlightRefresh();
           setTimeout(closeBubble, 1200);
         } else {
           saveBtn.disabled = false;
-          saveBtn.textContent = 'Save failed, try again';
+          saveBtn.textContent = label('saveFailed');
         }
       } catch {
         saveBtn.disabled = false;
-        saveBtn.textContent = 'Save failed, try again';
+        saveBtn.textContent = label('saveFailed');
       }
     }
   });
@@ -608,10 +815,17 @@ function onKeyDown(e: KeyboardEvent) {
 }
 
 // Attach listeners
+wordmarkWindow.__wordmarkCleanupContentScript?.();
 document.addEventListener('dblclick', onDblClick);
 document.addEventListener('mouseup', onMouseUp);
 document.addEventListener('mousedown', onMouseDown);
 document.addEventListener('keydown', onKeyDown);
+systemThemeQuery = window.matchMedia('(prefers-color-scheme: dark)');
+onSystemThemeChange = () => {
+  if (contentDarkMode === 'system') applyBubbleTheme();
+};
+systemThemeQuery.addEventListener?.('change', onSystemThemeChange);
+syncContentSettings();
 scheduleHighlightRefresh();
 
 const onStorageChanged = (
@@ -619,23 +833,37 @@ const onStorageChanged = (
   areaName: string
 ) => {
   if (areaName === 'local' && (changes.wordmark_words || changes.wordmark_settings)) {
+    const nextSettings = changes.wordmark_settings?.newValue as Settings | undefined;
+    if (nextSettings) {
+      contentDarkMode = nextSettings.darkMode;
+      contentLanguage = nextSettings.language;
+      applyBubbleTheme();
+      applyBubbleLanguage();
+    } else if (changes.wordmark_settings) {
+      syncContentSettings();
+    }
     scheduleHighlightRefresh();
   }
 };
 chrome.storage?.onChanged?.addListener(onStorageChanged);
 
-// Cleanup on page unload
-window.addEventListener('pagehide', () => {
+function cleanupContentScript() {
   document.removeEventListener('dblclick', onDblClick);
   document.removeEventListener('mouseup', onMouseUp);
   document.removeEventListener('mousedown', onMouseDown);
   document.removeEventListener('keydown', onKeyDown);
+  if (systemThemeQuery && onSystemThemeChange) {
+    systemThemeQuery.removeEventListener?.('change', onSystemThemeChange);
+  }
   chrome.storage?.onChanged?.removeListener(onStorageChanged);
   if (selectionTimeout) clearTimeout(selectionTimeout);
   if (highlightRefreshTimer) clearTimeout(highlightRefreshTimer);
   if (shadowHost) { shadowHost.remove(); shadowHost = null; shadowRoot = null; }
   if (highlightStyle) { highlightStyle.remove(); highlightStyle = null; }
-});
+}
+
+wordmarkWindow.__wordmarkCleanupContentScript = cleanupContentScript;
+window.addEventListener('pagehide', cleanupContentScript, { once: true });
 
 // ---------- Core Logic ----------
 
@@ -646,13 +874,18 @@ async function handleWordLookup(text: string, rect: DOMRect, contextSentence: st
   showLoading(rect);
 
   try {
-    const response = await chrome.runtime.sendMessage({ type: 'LOOKUP_WORD', word: cleaned });
+    const response = await chrome.runtime.sendMessage({
+      type: 'LOOKUP_WORD',
+      word: cleaned,
+      contextSentence,
+      pageTitle: document.title,
+    });
     if (response?.data) {
       showBubble(rect, response.data, contextSentence, cleaned);
     } else {
-      showError(rect, `No definition found for "${cleaned}"`);
+      showError(rect, label('noDefinition').replace('{word}', cleaned));
     }
   } catch {
-    showError(rect, 'Failed to look up word');
+    showError(rect, label('failedLookup'));
   }
 }

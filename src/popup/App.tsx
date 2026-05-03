@@ -40,15 +40,13 @@ export default function App() {
   const [tab, setTab] = useState<Tab>('today');
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [searchQuery, setSearchQuery] = useState('');
-  const [langKey, setLangKey] = useState(0);
 
   useEffect(() => {
     chrome.runtime.sendMessage({ type: 'GET_SETTINGS' }).then((res) => {
       if (res?.settings) {
-        setSettings(res.settings);
         setLanguage(res.settings.language || 'zh');
+        setSettings(res.settings);
         applyTheme(res.settings.darkMode);
-        setLangKey((n) => n + 1);
       }
     });
   }, []);
@@ -68,21 +66,30 @@ export default function App() {
     }
   }, []);
 
+  useEffect(() => {
+    if (settings.darkMode !== 'system') return;
+    const query = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleChange = () => applyTheme('system');
+    query.addEventListener('change', handleChange);
+    return () => query.removeEventListener('change', handleChange);
+  }, [applyTheme, settings.darkMode]);
+
   const handleSettingsChange = useCallback(
     (newSettings: Settings) => {
+      if (newSettings.language !== settings.language) {
+        setLanguage(newSettings.language);
+      }
       setSettings(newSettings);
-      setLanguage(newSettings.language);
       applyTheme(newSettings.darkMode);
       chrome.runtime.sendMessage({ type: 'SAVE_SETTINGS', settings: newSettings });
-      setLangKey((n) => n + 1);
     },
-    [applyTheme]
+    [applyTheme, settings.language]
   );
 
   const tabs: Tab[] = ['today', 'history', 'review', 'settings'];
 
   return (
-    <div key={langKey} className="flex flex-col h-full bg-[var(--color-bg)]">
+    <div className="flex flex-col h-full bg-[var(--color-bg)]">
       {/* Header */}
       <div className="flex-shrink-0 px-5 pt-4 pb-3">
         <div className="flex items-center justify-between mb-3">

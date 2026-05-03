@@ -168,7 +168,9 @@ function isDefinition(value: unknown): boolean {
   return isRecord(value)
     && typeof value.partOfSpeech === 'string'
     && typeof value.meaning === 'string'
-    && (value.meaningZh === undefined || typeof value.meaningZh === 'string');
+    && (value.meaningZh === undefined || typeof value.meaningZh === 'string')
+    && (value.source === undefined || value.source === 'dictionary' || value.source === 'free-translation' || value.source === 'ai')
+    && (value.translationSource === undefined || value.translationSource === 'dictionary' || value.translationSource === 'free-translation' || value.translationSource === 'ai');
 }
 
 function isValidWordEntry(value: unknown): value is VocabWord {
@@ -205,7 +207,11 @@ function isValidSettings(value: unknown): value is Settings {
     && (value.defaultAccent === 'us' || value.defaultAccent === 'uk')
     && typeof value.highlightSavedWords === 'boolean'
     && (value.language === 'en' || value.language === 'zh')
-    && (value.darkMode === 'system' || value.darkMode === 'light' || value.darkMode === 'dark');
+    && (value.darkMode === 'system' || value.darkMode === 'light' || value.darkMode === 'dark')
+    && (value.aiLookupEnabled === undefined || typeof value.aiLookupEnabled === 'boolean')
+    && (value.aiLookupMode === undefined || value.aiLookupMode === 'fallback' || value.aiLookupMode === 'always')
+    && (value.aiModel === undefined || typeof value.aiModel === 'string')
+    && (value.aiApiBaseUrl === undefined || typeof value.aiApiBaseUrl === 'string');
 }
 
 function ModalIcon({ children, danger = false }: { children: React.ReactNode; danger?: boolean }) {

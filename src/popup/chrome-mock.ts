@@ -6,6 +6,7 @@ import { DEFAULT_SETTINGS } from '../types';
 
 const STORAGE_KEY = 'wordmark_dev_words';
 const SETTINGS_KEY = 'wordmark_dev_settings';
+const AI_LOOKUP_CONFIG_KEY = 'wordmark_dev_ai_lookup_config';
 
 function getStoredWords(): VocabWord[] {
   try {
@@ -29,6 +30,18 @@ function getStoredSettings(): Settings {
 
 function setStoredSettings(settings: Settings) {
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+}
+
+function getAiLookupConfig() {
+  try {
+    return { apiKey: '', ...JSON.parse(localStorage.getItem(AI_LOOKUP_CONFIG_KEY) || '{}') };
+  } catch {
+    return { apiKey: '' };
+  }
+}
+
+function setAiLookupConfig(config: { apiKey?: string }) {
+  localStorage.setItem(AI_LOOKUP_CONFIG_KEY, JSON.stringify({ ...getAiLookupConfig(), ...config }));
 }
 
 function formatDate(d: Date): string {
@@ -56,8 +69,8 @@ const SAMPLE_WORDS: VocabWord[] = [
     phonetic: '/ɪˈfem.ər.əl/',
     audioUrl: 'https://api.dictionaryapi.dev/media/pronunciations/en/ephemeral-us.mp3',
     definitions: [
-      { partOfSpeech: 'adj', meaning: 'lasting for a very short time', meaningZh: '短暂的；转瞬即逝的' },
-      { partOfSpeech: 'adj', meaning: '(biology) lasting for only a day, as certain plants or insects', meaningZh: '（生物学）仅存活一天的' },
+      { partOfSpeech: 'adj', meaning: 'lasting for a very short time', meaningZh: '短暂的；转瞬即逝的', source: 'dictionary', translationSource: 'free-translation' },
+      { partOfSpeech: 'adj', meaning: '(biology) lasting for only a day, as certain plants or insects', meaningZh: '（生物学）仅存活一天的', source: 'dictionary', translationSource: 'free-translation' },
     ],
     context: {
       sentence: 'The beauty of cherry blossoms is ephemeral, lasting only a week.',
@@ -76,7 +89,7 @@ const SAMPLE_WORDS: VocabWord[] = [
     phonetic: '/juːˈbɪk.wɪ.təs/',
     audioUrl: '',
     definitions: [
-      { partOfSpeech: 'adj', meaning: 'present, appearing, or found everywhere', meaningZh: '无处不在的；普遍存在的' },
+      { partOfSpeech: 'adj', meaning: 'present, appearing, or found everywhere', meaningZh: '无处不在的；普遍存在的', source: 'dictionary', translationSource: 'free-translation' },
     ],
     context: {
       sentence: 'Smartphones have become ubiquitous in modern society.',
@@ -95,7 +108,7 @@ const SAMPLE_WORDS: VocabWord[] = [
     phonetic: '/ˌser.ənˈdɪp.ə.ti/',
     audioUrl: '',
     definitions: [
-      { partOfSpeech: 'noun', meaning: 'the occurrence of events by chance in a happy or beneficial way', meaningZh: '意外发现的好运；机缘巧合' },
+      { partOfSpeech: 'noun', meaning: 'the occurrence of events by chance in a happy or beneficial way', meaningZh: '意外发现的好运；机缘巧合', source: 'dictionary', translationSource: 'free-translation' },
     ],
     context: {
       sentence: 'Finding that rare book at the garage sale was pure serendipity.',
@@ -125,6 +138,13 @@ async function handleMessage(message: any): Promise<any> {
 
     case 'SAVE_SETTINGS':
       setStoredSettings({ ...settings, ...message.settings });
+      return { success: true };
+
+    case 'GET_AI_LOOKUP_CONFIG':
+      return { config: getAiLookupConfig() };
+
+    case 'SAVE_AI_LOOKUP_CONFIG':
+      setAiLookupConfig(message.config || {});
       return { success: true };
 
     case 'GET_STATS': {
@@ -184,6 +204,7 @@ async function handleMessage(message: any): Promise<any> {
           (m.definitions || []).slice(0, 1).map((d: any) => ({
             partOfSpeech: m.partOfSpeech || '',
             meaning: d.definition || '',
+            source: 'dictionary',
           }))
         );
         return {
@@ -197,6 +218,32 @@ async function handleMessage(message: any): Promise<any> {
       } catch {
         return { data: null };
       }
+    }
+
+    case 'REGENERATE_DEFINITION': {
+      const base = message.dictionaryResult;
+      const w = String(message.word || base?.word || '').trim().toLowerCase();
+      if (!w) return { data: null, error: 'Missing word' };
+      return {
+        data: {
+          word: base?.word || w,
+          phonetic: base?.phonetic || '',
+          phoneticUK: base?.phoneticUK,
+          audioUrl: base?.audioUrl || '',
+          audioUrlUK: base?.audioUrlUK,
+          source: 'ai',
+          confidence: 0.9,
+          definitions: [
+            {
+              partOfSpeech: base?.definitions?.[0]?.partOfSpeech || 'word',
+              meaning: base?.definitions?.[0]?.meaning || `AI-refined definition for ${w}`,
+              meaningZh: `AI 重新生成的「${w}」释义`,
+              source: 'ai',
+              translationSource: 'ai',
+            },
+          ],
+        },
+      };
     }
 
     case 'SAVE_WORD': {

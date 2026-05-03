@@ -11,10 +11,8 @@ export default defineConfig({
       closeBundle() {
         const distDir = resolve(__dirname, 'dist');
 
-        // Copy manifest.json
         copyFileSync(resolve(__dirname, 'manifest.json'), resolve(distDir, 'manifest.json'));
 
-        // Copy icons
         const iconsDir = resolve(distDir, 'icons');
         if (!existsSync(iconsDir)) mkdirSync(iconsDir, { recursive: true });
         for (const icon of ['icon16.png', 'icon48.png', 'icon128.png']) {
@@ -22,7 +20,6 @@ export default defineConfig({
           if (existsSync(src)) copyFileSync(src, resolve(iconsDir, icon));
         }
 
-        // Create empty content.css
         writeFileSync(resolve(distDir, 'content.css'), '/* styles injected via shadow DOM */');
       },
     },

@@ -3,6 +3,7 @@ import { t } from '../../utils/i18n';
 import type { VocabWord, Settings } from '../../types';
 import { reviewGotIt, reviewHard, reviewAgain, shouldMarkMastered } from '../../services/spaced-repetition';
 import { posAbbr } from '../../utils/pos';
+import { getDefinitionSourceLabels } from '../../utils/source-labels';
 
 
 interface ReviewViewProps {
@@ -255,6 +256,16 @@ export default function ReviewView({ settings }: ReviewViewProps) {
                       {def.meaningZh}
                     </p>
                   )}
+                  <div className="mt-1 flex flex-wrap gap-1">
+                    {getDefinitionSourceLabels(def).map((label) => (
+                      <span
+                        key={label}
+                        className="rounded-full border border-[var(--color-border)] px-1.5 py-[1px] text-[9px] leading-snug text-[var(--color-text-secondary)]"
+                      >
+                        {label}
+                      </span>
+                    ))}
+                  </div>
                 </div>
               ))}
             </div>

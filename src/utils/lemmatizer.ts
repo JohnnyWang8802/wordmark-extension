@@ -85,70 +85,110 @@ const irregularPlurals: Record<string, string> = {
 };
 
 export function lemmatize(word: string): string {
-  const lower = word.toLowerCase().trim();
+  return getLookupCandidates(word)[0] || '';
+}
 
-  if (lower.length <= 2) return lower;
+function unique(values: string[]): string[] {
+  return Array.from(new Set(values.filter(Boolean)));
+}
+
+function isVowel(char: string): boolean {
+  return 'aeiou'.includes(char);
+}
+
+function isConsonant(char: string): boolean {
+  return /^[a-z]$/.test(char) && !isVowel(char);
+}
+
+function likelyDroppedSilentE(stem: string): boolean {
+  if (stem.length < 3) return false;
+  const last = stem[stem.length - 1];
+  const prev = stem[stem.length - 2];
+  const beforePrev = stem[stem.length - 3];
+
+  // making -> make, coding -> code, driving -> drive, using -> use.
+  // Avoid broad "always add e" behavior that produced learne/worke/intereste.
+  return isConsonant(last) &&
+    !['w', 'x', 'y'].includes(last) &&
+    isVowel(prev) &&
+    isConsonant(beforePrev);
+}
+
+function addCandidate(candidates: string[], value: string) {
+  if (value && !candidates.includes(value)) candidates.push(value);
+}
+
+export function getLookupCandidates(word: string): string[] {
+  const lower = cleanSelection(word).toLowerCase().trim();
+
+  if (lower.length <= 2) return lower ? [lower] : [];
+
+  const candidates: string[] = [];
 
   // Check irregular forms
-  if (irregularVerbs[lower]) return irregularVerbs[lower];
-  if (irregularPlurals[lower]) return irregularPlurals[lower];
+  if (irregularVerbs[lower]) addCandidate(candidates, irregularVerbs[lower]);
+  if (irregularPlurals[lower]) addCandidate(candidates, irregularPlurals[lower]);
 
   // -ing forms
   if (lower.endsWith('ing')) {
     if (lower.length > 5 && lower[lower.length - 4] === lower[lower.length - 5]) {
       // running -> run (double consonant)
-      return lower.slice(0, -4);
+      addCandidate(candidates, lower.slice(0, -4));
     }
     const withoutIng = lower.slice(0, -3);
     if (withoutIng.length >= 2) {
-      // try adding 'e' back: making -> make
-      return withoutIng + 'e';
+      if (likelyDroppedSilentE(withoutIng)) addCandidate(candidates, withoutIng + 'e');
+      addCandidate(candidates, withoutIng);
+    } else {
+      addCandidate(candidates, withoutIng);
     }
-    return withoutIng;
   }
 
   // -ed forms
   if (lower.endsWith('ed') && lower.length > 4) {
     if (lower.endsWith('ied')) {
-      return lower.slice(0, -3) + 'y'; // carried -> carry
+      addCandidate(candidates, lower.slice(0, -3) + 'y'); // carried -> carry
+    } else if (lower[lower.length - 3] === lower[lower.length - 4]) {
+      addCandidate(candidates, lower.slice(0, -3)); // stopped -> stop
+    } else {
+      const withoutEd = lower.slice(0, -2);
+      if (likelyDroppedSilentE(withoutEd)) addCandidate(candidates, withoutEd + 'e');
+      addCandidate(candidates, withoutEd);
     }
-    if (lower[lower.length - 3] === lower[lower.length - 4]) {
-      return lower.slice(0, -3); // stopped -> stop
-    }
-    const withoutEd = lower.slice(0, -2);
-    if (withoutEd.endsWith('e')) return withoutEd;
-    // check if base + e is more natural
-    return lower.slice(0, -1).endsWith('e') ? lower.slice(0, -1) : lower.slice(0, -2);
   }
 
   // -er, -est comparative/superlative
   if (lower.endsWith('er') && lower.length > 4) {
-    if (lower.endsWith('ier')) return lower.slice(0, -3) + 'y';
-    if (lower[lower.length - 3] === lower[lower.length - 4]) return lower.slice(0, -3);
+    if (lower.endsWith('ier')) addCandidate(candidates, lower.slice(0, -3) + 'y');
+    if (lower[lower.length - 3] === lower[lower.length - 4]) addCandidate(candidates, lower.slice(0, -3));
+    addCandidate(candidates, lower.slice(0, -2));
   }
   if (lower.endsWith('est') && lower.length > 5) {
-    if (lower.endsWith('iest')) return lower.slice(0, -4) + 'y';
+    if (lower.endsWith('iest')) addCandidate(candidates, lower.slice(0, -4) + 'y');
+    if (lower[lower.length - 4] === lower[lower.length - 5]) addCandidate(candidates, lower.slice(0, -4));
+    addCandidate(candidates, lower.slice(0, -3));
   }
 
   // -s / -es plural/verb forms
   if (lower.endsWith('ies') && lower.length > 4) {
-    return lower.slice(0, -3) + 'y'; // cities -> city
+    addCandidate(candidates, lower.slice(0, -3) + 'y'); // cities -> city
   }
   if (lower.endsWith('ses') || lower.endsWith('xes') || lower.endsWith('zes') ||
       lower.endsWith('ches') || lower.endsWith('shes')) {
-    return lower.slice(0, -2); // boxes -> box
+    addCandidate(candidates, lower.slice(0, -2)); // boxes -> box
   }
   if (lower.endsWith('s') && !lower.endsWith('ss') && lower.length > 3) {
-    return lower.slice(0, -1);
+    addCandidate(candidates, lower.slice(0, -1));
   }
 
   // -ly adverbs
   if (lower.endsWith('ly') && lower.length > 4) {
-    if (lower.endsWith('ily')) return lower.slice(0, -3) + 'y'; // happily -> happy
-    return lower.slice(0, -2); // quickly -> quick
+    if (lower.endsWith('ily')) addCandidate(candidates, lower.slice(0, -3) + 'y'); // happily -> happy
+    addCandidate(candidates, lower.slice(0, -2)); // quickly -> quick
   }
 
-  return lower;
+  addCandidate(candidates, lower);
+  return unique(candidates);
 }
 
 export function cleanSelection(text: string): string {

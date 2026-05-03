@@ -61,6 +61,18 @@ body {
   flex-direction: column;
 }
 
+@media (min-width: 421px) {
+  body {
+    box-shadow: 0 2px 8px rgba(44,36,24,0.24);
+    border-right: 0;
+  }
+
+  .dark body {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.52);
+    border-right: 0;
+  }
+}
+
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 3px;

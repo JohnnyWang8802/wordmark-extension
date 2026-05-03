@@ -1,4 +1,5 @@
 import { lookupWord } from '../services/dictionary';
+import { lookupWordWithAI } from '../services/ai-lookup';
 import { allowRequest, fetchWithTimeout, isTemporarilyFailed, rememberTemporaryFailure } from '../services/network';
 import {
   getAllWords,
@@ -11,13 +12,121 @@ import {
   getStats,
   getSettings,
   saveSettings,
+  getAiLookupConfig,
+  saveAiLookupConfig,
   getCachedLookup,
   setCachedLookup,
 } from '../services/storage';
 import { formatDate } from '../utils/date';
+import { getLookupCandidates } from '../utils/lemmatizer';
 import type { DictionaryResult, MessageType } from '../types';
 
 const ttsCache = new Map<string, string>();
+
+function hasChineseTranslation(data: DictionaryResult | null | undefined): data is DictionaryResult {
+  return Boolean(data?.definitions?.some((d: { meaningZh?: string }) => d.meaningZh));
+}
+
+interface LookupContext {
+  contextSentence?: string;
+  pageTitle?: string;
+}
+
+async function lookupWordWithFallback(word: string, context: LookupContext = {}): Promise<DictionaryResult | null> {
+  const candidates = getLookupCandidates(word).slice(0, 6);
+  if (candidates.length === 0) return null;
+  const normalized = word.toLowerCase().trim();
+  const settings = await getSettings();
+  const aiConfig = settings.aiLookupEnabled ? await getAiLookupConfig() : { apiKey: '' };
+  const canUseAI = settings.aiLookupEnabled && Boolean(aiConfig.apiKey.trim());
+  let bestCached: DictionaryResult | null = null;
+
+  for (const candidate of candidates) {
+    const cached = await getCachedLookup(candidate);
+    const cachedData = cached as DictionaryResult | null;
+    if (hasChineseTranslation(cachedData)) {
+      const canReuseAIResult = cachedData.source === 'ai' && !context.contextSentence;
+      if (!canUseAI || settings.aiLookupMode !== 'always' || canReuseAIResult) {
+        if (candidate !== normalized) {
+          await setCachedLookup(word, cachedData);
+        }
+        return cachedData;
+      }
+      bestCached = cachedData;
+      break;
+    }
+  }
+
+  let dictionaryData = bestCached;
+  if (!dictionaryData) {
+    for (const candidate of candidates) {
+      const data = await lookupWord(candidate);
+      if (data) {
+        dictionaryData = data;
+        await setCachedLookup(candidate, data);
+        if (candidate !== normalized) {
+          await setCachedLookup(word, data);
+        }
+        break;
+      }
+    }
+  }
+
+  if (canUseAI && (!dictionaryData || !hasChineseTranslation(dictionaryData) || settings.aiLookupMode === 'always')) {
+    const aiData = await lookupWordWithAI({
+      word,
+      contextSentence: context.contextSentence,
+      pageTitle: context.pageTitle,
+      dictionaryResult: dictionaryData,
+      settings,
+      apiKey: aiConfig.apiKey,
+    });
+
+    if (aiData) {
+      await setCachedLookup(word, aiData);
+      const aiWord = aiData.word.toLowerCase().trim();
+      if (aiWord && aiWord !== normalized) {
+        await setCachedLookup(aiWord, aiData);
+      }
+      return aiData;
+    }
+  }
+
+  return dictionaryData;
+}
+
+async function regenerateDefinition(
+  word: string,
+  context: LookupContext = {},
+  dictionaryResult: DictionaryResult | null = null
+): Promise<{ data: DictionaryResult | null; error?: string }> {
+  const settings = await getSettings();
+  const aiConfig = await getAiLookupConfig();
+  if (!aiConfig.apiKey.trim()) {
+    return { data: null, error: 'AI API key is not configured' };
+  }
+
+  const baseResult = dictionaryResult || await lookupWordWithFallback(word, context);
+  const aiData = await lookupWordWithAI({
+    word,
+    contextSentence: context.contextSentence,
+    pageTitle: context.pageTitle,
+    dictionaryResult: baseResult,
+    settings,
+    apiKey: aiConfig.apiKey,
+  });
+
+  if (!aiData) {
+    return { data: null, error: 'AI regeneration failed' };
+  }
+
+  await setCachedLookup(word, aiData);
+  const aiWord = aiData.word.toLowerCase().trim();
+  if (aiWord && aiWord !== word.toLowerCase().trim()) {
+    await setCachedLookup(aiWord, aiData);
+  }
+  return { data: aiData };
+}
 
 // ---------- Message Handling ----------
 
@@ -30,16 +139,23 @@ async function handleMessage(message: MessageType): Promise<unknown> {
   switch (message.type) {
     case 'LOOKUP_WORD': {
       const { word } = message;
-      // Check cache — skip if it lacks Chinese translations
-      const cached = await getCachedLookup(word);
-      if (cached && cached.definitions?.some((d: { meaningZh?: string }) => d.meaningZh)) {
-        return { type: 'LOOKUP_WORD_RESULT', data: cached as DictionaryResult };
-      }
-      const data = await lookupWord(word);
-      if (data) {
-        await setCachedLookup(word, data);
-      }
+      const data = await lookupWordWithFallback(word, {
+        contextSentence: message.contextSentence,
+        pageTitle: message.pageTitle,
+      });
       return { type: 'LOOKUP_WORD_RESULT', data };
+    }
+
+    case 'REGENERATE_DEFINITION': {
+      const result = await regenerateDefinition(
+        message.word,
+        {
+          contextSentence: message.contextSentence,
+          pageTitle: message.pageTitle,
+        },
+        message.dictionaryResult || null
+      );
+      return { type: 'REGENERATE_DEFINITION_RESULT', ...result };
     }
 
     case 'GET_TTS_AUDIO': {
@@ -133,6 +249,16 @@ async function handleMessage(message: MessageType): Promise<unknown> {
       return { success: true };
     }
 
+    case 'GET_AI_LOOKUP_CONFIG': {
+      const config = await getAiLookupConfig();
+      return { type: 'GET_AI_LOOKUP_CONFIG_RESULT', config };
+    }
+
+    case 'SAVE_AI_LOOKUP_CONFIG': {
+      await saveAiLookupConfig(message.config);
+      return { success: true };
+    }
+
     default:
       return { error: 'Unknown message type' };
   }
@@ -149,6 +275,25 @@ async function updateBadge() {
   } else {
     chrome.action.setBadgeText({ text: '' });
   }
+}
+
+async function injectContentScriptsIntoOpenTabs() {
+  if (!chrome.scripting?.executeScript) return;
+  const tabs = await chrome.tabs.query({ url: ['http://*/*', 'https://*/*'] });
+
+  await Promise.allSettled(
+    tabs.map(async (tab) => {
+      if (!tab.id) return;
+      await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        files: ['content.js'],
+      });
+      await chrome.scripting.insertCSS({
+        target: { tabId: tab.id },
+        files: ['content.css'],
+      }).catch(() => undefined);
+    })
+  );
 }
 
 // ---------- Alarms ----------
@@ -204,9 +349,11 @@ async function setupAlarms() {
 chrome.runtime.onInstalled.addListener(async () => {
   await setupAlarms();
   await updateBadge();
+  await injectContentScriptsIntoOpenTabs();
 });
 
 chrome.runtime.onStartup.addListener(async () => {
   await setupAlarms();
   await updateBadge();
+  await injectContentScriptsIntoOpenTabs();
 });

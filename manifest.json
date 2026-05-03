@@ -6,11 +6,14 @@
   "permissions": [
     "storage",
     "alarms",
-    "notifications"
+    "notifications",
+    "scripting"
   ],
   "host_permissions": [
     "https://api.dictionaryapi.dev/*",
     "https://api.mymemory.translated.net/*",
+    "http://*/*",
+    "https://*/*",
     "https://translate.google.com/*"
   ],
   "background": {

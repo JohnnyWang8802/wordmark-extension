@@ -1,8 +1,9 @@
-import { VocabWord, Settings, DEFAULT_SETTINGS, SaveWordResult } from '../types';
+import { VocabWord, Settings, DEFAULT_SETTINGS, SaveWordResult, AiLookupConfig } from '../types';
 import { formatDate, isThisWeek } from '../utils/date';
 
 const WORDS_KEY = 'wordmark_words';
 const SETTINGS_KEY = 'wordmark_settings';
+const AI_LOOKUP_CONFIG_KEY = 'wordmark_ai_lookup_config';
 const CACHE_KEY = 'wordmark_dict_cache';
 
 let writeQueue: Promise<unknown> = Promise.resolve();
@@ -102,6 +103,18 @@ export async function saveSettings(settings: Partial<Settings>): Promise<void> {
     const current = await getSettings();
     const updated = { ...current, ...settings };
     await chrome.storage.local.set({ [SETTINGS_KEY]: updated });
+  });
+}
+
+export async function getAiLookupConfig(): Promise<AiLookupConfig> {
+  const result = await chrome.storage.local.get(AI_LOOKUP_CONFIG_KEY);
+  return { apiKey: '', ...(result[AI_LOOKUP_CONFIG_KEY] || {}) };
+}
+
+export async function saveAiLookupConfig(config: Partial<AiLookupConfig>): Promise<void> {
+  return enqueueWrite(async () => {
+    const current = await getAiLookupConfig();
+    await chrome.storage.local.set({ [AI_LOOKUP_CONFIG_KEY]: { ...current, ...config } });
   });
 }
 

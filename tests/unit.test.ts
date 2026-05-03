@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { formatDate, addDays, isThisWeek } from '../src/utils/date.js';
-import { lemmatize, cleanSelection } from '../src/utils/lemmatizer.js';
+import { lemmatize, cleanSelection, getLookupCandidates } from '../src/utils/lemmatizer.js';
 import { getInitialSR, reviewAgain, reviewGotIt, reviewHard, shouldMarkMastered } from '../src/services/spaced-repetition.js';
 import type { VocabWord } from '../src/types/index.js';
 
@@ -31,9 +31,14 @@ test('date helpers use local calendar formatting', () => {
 test('lemmatizer handles common forms and punctuation cleanup', () => {
   assert.equal(cleanSelection(' “Running,” '), 'Running');
   assert.equal(lemmatize('running'), 'run');
+  assert.equal(lemmatize('making'), 'make');
+  assert.equal(lemmatize('learning'), 'learn');
+  assert.equal(lemmatize('interesting'), 'interest');
   assert.equal(lemmatize('cities'), 'city');
   assert.equal(lemmatize('children'), 'child');
   assert.equal(lemmatize('quickly'), 'quick');
+  assert.deepEqual(getLookupCandidates('  “Learning,”  ').slice(0, 2), ['learn', 'learning']);
+  assert.deepEqual(getLookupCandidates('coded').slice(0, 2), ['code', 'cod']);
 });
 
 test('spaced repetition schedules initial and failed reviews', () => {

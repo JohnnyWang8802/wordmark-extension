@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { t } from '../../utils/i18n';
 import { posAbbr } from '../../utils/pos';
+import { getDefinitionSourceLabels } from '../../utils/source-labels';
 import type { VocabWord, Settings } from '../../types';
 
 
@@ -17,6 +18,7 @@ export default function WordCard({ word, settings, onUpdate, onDelete }: WordCar
   const [showTagInput, setShowTagInput] = useState(false);
   const [playState, setPlayState] = useState<'idle' | 'loading' | 'playing'>('idle');
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [regenerateState, setRegenerateState] = useState<'idle' | 'loading' | 'error'>('idle');
   const tagInputRef = useRef<HTMLInputElement>(null);
 
   const playAudio = (src: string) => {
@@ -98,6 +100,46 @@ export default function WordCard({ word, settings, onUpdate, onDelete }: WordCar
     }
     setConfirmingDelete(true);
     window.setTimeout(() => setConfirmingDelete(false), 3000);
+  };
+
+  const handleRegenerate = async () => {
+    if (regenerateState === 'loading') return;
+    setRegenerateState('loading');
+    try {
+      const res = await chrome.runtime.sendMessage({
+        type: 'REGENERATE_DEFINITION',
+        word: word.word,
+        contextSentence: word.context.sentence,
+        pageTitle: word.context.pageTitle,
+        dictionaryResult: {
+          word: word.word,
+          phonetic: word.phonetic,
+          phoneticUK: word.phoneticUK,
+          audioUrl: word.audioUrl,
+          audioUrlUK: word.audioUrlUK,
+          definitions: word.definitions,
+        },
+      });
+      if (!res?.data?.definitions?.length) {
+        setRegenerateState('error');
+        window.setTimeout(() => setRegenerateState('idle'), 2500);
+        return;
+      }
+
+      onUpdate({
+        ...word,
+        word: res.data.word || word.word,
+        phonetic: res.data.phonetic || word.phonetic,
+        phoneticUK: res.data.phoneticUK || word.phoneticUK,
+        audioUrl: res.data.audioUrl || word.audioUrl,
+        audioUrlUK: res.data.audioUrlUK || word.audioUrlUK,
+        definitions: res.data.definitions,
+      });
+      setRegenerateState('idle');
+    } catch {
+      setRegenerateState('error');
+      window.setTimeout(() => setRegenerateState('idle'), 2500);
+    }
   };
 
   const phonetic = settings.defaultAccent === 'uk' && word.phoneticUK
@@ -195,6 +237,16 @@ export default function WordCard({ word, settings, onUpdate, onDelete }: WordCar
                   {def.meaningZh}
                 </p>
               )}
+              <div className="mt-1 flex flex-wrap gap-1">
+                {getDefinitionSourceLabels(def).map((label) => (
+                  <span
+                    key={label}
+                    className="rounded-full border border-[var(--color-border)] px-1.5 py-[1px] text-[9px] leading-snug text-[var(--color-text-secondary)]"
+                  >
+                    {label}
+                  </span>
+                ))}
+              </div>
             </div>
           ))}
         </div>
@@ -266,6 +318,22 @@ export default function WordCard({ word, settings, onUpdate, onDelete }: WordCar
               {sourceHost} · {createdDate}
             </div>
             <div className="flex items-center gap-1.5">
+              <button
+                onClick={handleRegenerate}
+                disabled={regenerateState === 'loading'}
+                className={`text-[11px] px-2.5 py-1 rounded-md border transition-colors ${
+                  regenerateState === 'error'
+                    ? 'text-red-500 dark:text-red-400 border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20'
+                    : 'text-primary-600 dark:text-primary-400 border-primary-200 dark:border-primary-800 hover:bg-primary-50 dark:hover:bg-primary-900/20 disabled:opacity-60'
+                }`}
+                title={regenerateState === 'error' ? t('card.regenerateFailed') : t('card.regenerate')}
+              >
+                {regenerateState === 'loading'
+                  ? t('card.regenerating')
+                  : regenerateState === 'error'
+                    ? t('card.regenerateFailedShort')
+                    : t('card.regenerate')}
+              </button>
               <button
                 onClick={handleToggleMastered}
                 className={`text-[11px] px-2.5 py-1 rounded-md font-medium transition-colors ${
