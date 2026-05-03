@@ -1,0 +1,123 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-primary: #C87B4A;
+  --color-primary-hover: #B5693D;
+  --color-accent: #D9996A;
+  --color-bg: #FDFCFA;
+  --color-card: #FFFFFF;
+  --color-text: #2C2418;
+  --color-text-secondary: #8C7E6E;
+  --color-border: #EDE8E0;
+  --color-divider: #F5F0EA;
+  --color-surface: #F9F6F1;
+}
+
+.dark {
+  --color-bg: #1C1A17;
+  --color-card: #262320;
+  --color-text: #EDE8E0;
+  --color-text-secondary: #9A8B7A;
+  --color-border: #3D3630;
+  --color-divider: #302B26;
+  --color-surface: #211F1C;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  width: 400px;
+  height: 600px;
+  overflow: hidden;
+}
+
+@media (min-width: 421px) {
+  html, body {
+    width: 100vw;
+    height: 100vh;
+    min-width: 400px;
+    min-height: 600px;
+  }
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background: var(--color-bg);
+  color: var(--color-text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 3px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-secondary);
+}
+
+/* Animations */
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-up {
+  animation: fadeUp 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    max-height: 0;
+  }
+  to {
+    opacity: 1;
+    max-height: 600px;
+  }
+}
+
+.animate-slide-in {
+  animation: slideIn 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Word display font */
+.font-word {
+  font-family: Georgia, Cambria, serif;
+  letter-spacing: -0.01em;
+}
+
+/* Chinese translation — serif contrast with sans English definitions */
+.font-zh {
+  font-family: "Noto Serif SC", "Source Han Serif SC", "Songti SC", "STSong", "SimSun", serif;
+  letter-spacing: 0.01em;
+}

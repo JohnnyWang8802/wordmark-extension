@@ -1,0 +1,260 @@
+/* WordMark content script styles - injected into shadow DOM */
+:host {
+  all: initial;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #1F2937;
+}
+
+.wm-bubble {
+  position: fixed;
+  z-index: 2147483647;
+  width: 340px;
+  background: #FFFFFF;
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.05);
+  padding: 0;
+  animation: wm-bubble-in 0.2s ease-out;
+  overflow: hidden;
+}
+
+@keyframes wm-bubble-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes wm-bubble-out {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.95) translateY(4px);
+  }
+}
+
+.wm-bubble.wm-closing {
+  animation: wm-bubble-out 0.15s ease-in forwards;
+}
+
+/* Header */
+.wm-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px 8px;
+  border-bottom: 1px solid #F3F4F6;
+}
+
+.wm-word-section {
+  flex: 1;
+  min-width: 0;
+}
+
+.wm-word {
+  font-family: Georgia, Cambria, serif;
+  font-size: 22px;
+  font-weight: 700;
+  color: #1F2937;
+  margin: 0;
+  line-height: 1.2;
+}
+
+.wm-phonetic-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.wm-phonetic {
+  font-size: 13px;
+  color: #6B7280;
+  font-style: italic;
+}
+
+.wm-audio-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px;
+  font-size: 16px;
+  line-height: 1;
+  opacity: 0.7;
+  transition: opacity 0.15s;
+}
+
+.wm-audio-btn:hover {
+  opacity: 1;
+}
+
+.wm-close-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  font-size: 18px;
+  color: #9CA3AF;
+  line-height: 1;
+  border-radius: 4px;
+  transition: background 0.15s, color 0.15s;
+  flex-shrink: 0;
+}
+
+.wm-close-btn:hover {
+  background: #F3F4F6;
+  color: #4B5563;
+}
+
+/* Definitions */
+.wm-definitions {
+  padding: 10px 16px;
+  border-bottom: 1px solid #F3F4F6;
+}
+
+.wm-definition {
+  margin: 0 0 4px;
+  font-size: 13px;
+  color: #374151;
+  line-height: 1.5;
+}
+
+.wm-pos {
+  font-weight: 600;
+  color: #6366F1;
+  margin-right: 4px;
+  font-style: italic;
+}
+
+/* Context */
+.wm-context {
+  padding: 10px 16px;
+  border-bottom: 1px solid #F3F4F6;
+}
+
+.wm-context-label {
+  font-size: 11px;
+  color: #9CA3AF;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 4px;
+}
+
+.wm-context-text {
+  font-size: 13px;
+  color: #4B5563;
+  line-height: 1.5;
+  margin: 0;
+  font-style: italic;
+}
+
+.wm-context-text mark {
+  background: #FEF3C7;
+  color: #92400E;
+  font-weight: 600;
+  padding: 0 2px;
+  border-radius: 2px;
+  font-style: normal;
+}
+
+/* Footer */
+.wm-footer {
+  padding: 10px 16px 12px;
+  display: flex;
+  gap: 8px;
+}
+
+.wm-save-btn {
+  flex: 1;
+  background: #6366F1;
+  color: #FFFFFF;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+  font-family: inherit;
+}
+
+.wm-save-btn:hover {
+  background: #4F46E5;
+}
+
+.wm-save-btn:active {
+  transform: scale(0.98);
+}
+
+.wm-save-btn.wm-saved {
+  background: #10B981;
+  cursor: default;
+}
+
+.wm-save-btn:disabled {
+  background: #D1D5DB;
+  cursor: not-allowed;
+}
+
+/* Loading */
+.wm-loading {
+  padding: 24px 16px;
+  text-align: center;
+  color: #9CA3AF;
+  font-size: 13px;
+}
+
+.wm-loading-spinner {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 2px solid #E5E7EB;
+  border-top-color: #6366F1;
+  border-radius: 50%;
+  animation: wm-spin 0.6s linear infinite;
+  margin-bottom: 8px;
+}
+
+@keyframes wm-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Error */
+.wm-error {
+  padding: 20px 16px;
+  text-align: center;
+  color: #9CA3AF;
+  font-size: 13px;
+}
+
+/* Saved word highlight on page */
+.wm-saved-highlight {
+  border-bottom: 2px dotted #6366F1;
+  cursor: pointer;
+}
+
+/* Checkmark animation */
+@keyframes wm-check-draw {
+  0% { stroke-dashoffset: 20; }
+  100% { stroke-dashoffset: 0; }
+}
+
+.wm-check-icon {
+  width: 16px;
+  height: 16px;
+  vertical-align: middle;
+  margin-right: 4px;
+}
+
+.wm-check-icon path {
+  stroke-dasharray: 20;
+  animation: wm-check-draw 0.3s ease-out forwards;
+}

@@ -1,0 +1,29 @@
+{
+  "name": "wordmark-extension",
+  "version": "1.0.0",
+  "description": "WordMark — 每日生词本: Capture, organize, and memorize vocabulary while reading",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --config vite.dev.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "tsc -p tsconfig.test.json && node --experimental-specifier-resolution=node --test .tmp-tests/tests/*.test.js",
+    "build": "vite build",
+    "watch": "vite build --watch"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "@types/chrome": "^0.0.287",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.16",
+    "typescript": "^5.6.3",
+    "vite": "^6.0.3"
+  }
+}

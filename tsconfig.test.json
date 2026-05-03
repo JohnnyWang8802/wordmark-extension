@@ -1,0 +1,20 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "allowImportingTsExtensions": false,
+    "noEmit": false,
+    "outDir": ".tmp-tests",
+    "rootDir": ".",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "types": ["node"],
+    "skipLibCheck": true
+  },
+  "include": [
+    "src/services/spaced-repetition.ts",
+    "src/utils/date.ts",
+    "src/utils/lemmatizer.ts",
+    "src/types/index.ts",
+    "tests/**/*.test.ts"
+  ]
+}
