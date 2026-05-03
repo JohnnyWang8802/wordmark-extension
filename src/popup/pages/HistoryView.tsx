@@ -8,6 +8,8 @@ import WordCard from '../components/WordCard';
 interface HistoryViewProps {
   searchQuery: string;
   settings: Settings;
+  refreshKey: number;
+  onDataChange: () => void;
 }
 
 interface DateGroup {
@@ -16,14 +18,14 @@ interface DateGroup {
   words: VocabWord[];
 }
 
-export default function HistoryView({ searchQuery, settings }: HistoryViewProps) {
+export default function HistoryView({ searchQuery, settings, refreshKey, onDataChange }: HistoryViewProps) {
   const [groups, setGroups] = useState<DateGroup[]>([]);
   const [expandedDates, setExpandedDates] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadAllWords();
-  }, []);
+  }, [refreshKey]);
 
   const loadAllWords = async () => {
     setLoading(true);
@@ -75,6 +77,7 @@ export default function HistoryView({ searchQuery, settings }: HistoryViewProps)
         words: g.words.map((w) => (w.id === word.id ? word : w)),
       }))
     );
+    onDataChange();
   };
 
   const handleDelete = async (id: string) => {
@@ -84,6 +87,7 @@ export default function HistoryView({ searchQuery, settings }: HistoryViewProps)
         .map((g) => ({ ...g, words: g.words.filter((w) => w.id !== id) }))
         .filter((g) => g.words.length > 0)
     );
+    onDataChange();
   };
 
   const filteredGroups = searchQuery

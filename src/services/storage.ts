@@ -1,5 +1,6 @@
 import { VocabWord, Settings, DEFAULT_SETTINGS, SaveWordResult, AiLookupConfig } from '../types';
 import { formatDate, isThisWeek } from '../utils/date';
+import { isDueForReview } from '../utils/review';
 
 const WORDS_KEY = 'wordmark_words';
 const SETTINGS_KEY = 'wordmark_settings';
@@ -72,7 +73,7 @@ export async function isWordSaved(word: string): Promise<boolean> {
 export async function getReviewWords(): Promise<VocabWord[]> {
   const all = await getAllWords();
   const today = formatDate(new Date());
-  return all.filter((w) => !w.mastered && w.sr.nextReviewDate <= today);
+  return all.filter((w) => isDueForReview(w, today));
 }
 
 export async function getStats(): Promise<{
@@ -87,7 +88,7 @@ export async function getStats(): Promise<{
     total: all.length,
     thisWeek: all.filter((w) => isThisWeek(w.createdAt)).length,
     mastered: all.filter((w) => w.mastered).length,
-    reviewDue: all.filter((w) => !w.mastered && w.sr.nextReviewDate <= today).length,
+    reviewDue: all.filter((w) => isDueForReview(w, today)).length,
   };
 }
 

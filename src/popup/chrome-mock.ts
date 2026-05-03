@@ -3,6 +3,7 @@
 
 import type { VocabWord, Settings } from '../types';
 import { DEFAULT_SETTINGS } from '../types';
+import { isDueForReview } from '../utils/review';
 
 const STORAGE_KEY = 'wordmark_dev_words';
 const SETTINGS_KEY = 'wordmark_dev_settings';
@@ -154,7 +155,7 @@ async function handleMessage(message: any): Promise<any> {
           total: words.length,
           thisWeek: words.filter((w) => isThisWeek(w.createdAt)).length,
           mastered: words.filter((w) => w.mastered).length,
-          reviewDue: words.filter((w) => !w.mastered && w.sr.nextReviewDate <= today).length,
+          reviewDue: words.filter((w) => isDueForReview(w, today)).length,
         },
       };
     }
@@ -186,7 +187,7 @@ async function handleMessage(message: any): Promise<any> {
 
     case 'GET_REVIEW_WORDS': {
       const today = formatDate(new Date());
-      return { words: words.filter((w) => !w.mastered && w.sr.nextReviewDate <= today) };
+      return { words: words.filter((w) => isDueForReview(w, today)) };
     }
 
     case 'LOOKUP_WORD': {

@@ -8,14 +8,18 @@ interface Stats {
   reviewDue: number;
 }
 
-export default function StatsBar() {
+interface StatsBarProps {
+  refreshKey: number;
+}
+
+export default function StatsBar({ refreshKey }: StatsBarProps) {
   const [stats, setStats] = useState<Stats>({ total: 0, thisWeek: 0, mastered: 0, reviewDue: 0 });
 
   useEffect(() => {
     chrome.runtime.sendMessage({ type: 'GET_STATS' }).then((res) => {
       if (res?.stats) setStats(res.stats);
     });
-  }, []);
+  }, [refreshKey]);
 
   const items = [
     { label: t('stats.total'), value: stats.total, color: 'text-[var(--color-text)]' },

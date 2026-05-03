@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { formatDate, addDays, isThisWeek } from '../src/utils/date.js';
 import { lemmatize, cleanSelection, getLookupCandidates } from '../src/utils/lemmatizer.js';
+import { isDueForReview } from '../src/utils/review.js';
 import { getInitialSR, reviewAgain, reviewGotIt, reviewHard, shouldMarkMastered } from '../src/services/spaced-repetition.js';
 import type { VocabWord } from '../src/types/index.js';
 
@@ -64,4 +65,21 @@ test('spaced repetition advances successful reviews and mastery threshold', () =
 
   assert.equal(shouldMarkMastered({ nextReviewDate: '2026-01-01', interval: 21, easeFactor: 2.5, repetitions: 5 }), true);
   assert.equal(shouldMarkMastered({ nextReviewDate: '2026-01-01', interval: 20, easeFactor: 2.5, repetitions: 5 }), false);
+});
+
+test('review due filter excludes mastered words and normalizes date strings', () => {
+  assert.equal(isDueForReview(makeWord({
+    mastered: false,
+    sr: { nextReviewDate: '2026-01-01T12:00:00.000Z', interval: 1, easeFactor: 2.5, repetitions: 0 },
+  }), '2026-01-02'), true);
+
+  assert.equal(isDueForReview(makeWord({
+    mastered: true,
+    sr: { nextReviewDate: '2026-01-01', interval: 1, easeFactor: 2.5, repetitions: 0 },
+  }), '2026-01-02'), false);
+
+  assert.equal(isDueForReview(makeWord({
+    mastered: false,
+    sr: { nextReviewDate: '2026-01-03', interval: 1, easeFactor: 2.5, repetitions: 0 },
+  }), '2026-01-02'), false);
 });

@@ -9,9 +9,11 @@ import AddWordBar from '../components/AddWordBar';
 interface TodayViewProps {
   searchQuery: string;
   settings: Settings;
+  refreshKey: number;
+  onDataChange: () => void;
 }
 
-export default function TodayView({ searchQuery, settings }: TodayViewProps) {
+export default function TodayView({ searchQuery, settings, refreshKey, onDataChange }: TodayViewProps) {
   const [words, setWords] = useState<VocabWord[]>([]);
   const [date, setDate] = useState(formatDate(new Date()));
   const [loading, setLoading] = useState(true);
@@ -25,20 +27,23 @@ export default function TodayView({ searchQuery, settings }: TodayViewProps) {
 
   useEffect(() => {
     loadWords();
-  }, [loadWords]);
+  }, [loadWords, refreshKey]);
 
   const handleUpdate = async (word: VocabWord) => {
     await chrome.runtime.sendMessage({ type: 'UPDATE_WORD', word });
     setWords((prev) => prev.map((w) => (w.id === word.id ? word : w)));
+    onDataChange();
   };
 
   const handleDelete = async (id: string) => {
     await chrome.runtime.sendMessage({ type: 'DELETE_WORD', id });
     setWords((prev) => prev.filter((w) => w.id !== id));
+    onDataChange();
   };
 
   const handleAdded = (word: VocabWord) => {
     setWords((prev) => [word, ...prev]);
+    onDataChange();
   };
 
   const isToday = date === formatDate(new Date());

@@ -8,9 +8,10 @@ import { getDefinitionSourceLabels } from '../../utils/source-labels';
 
 interface ReviewViewProps {
   settings: Settings;
+  onDataChange: () => void;
 }
 
-export default function ReviewView({ settings }: ReviewViewProps) {
+export default function ReviewView({ settings, onDataChange }: ReviewViewProps) {
   const [words, setWords] = useState<VocabWord[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
@@ -49,6 +50,7 @@ export default function ReviewView({ settings }: ReviewViewProps) {
       mastered: mastered || currentWord.mastered,
     };
     await chrome.runtime.sendMessage({ type: 'UPDATE_WORD', word: updated });
+    onDataChange();
     advance();
   };
 
@@ -57,6 +59,7 @@ export default function ReviewView({ settings }: ReviewViewProps) {
     const newSR = reviewHard(currentWord);
     const updated = { ...currentWord, sr: newSR };
     await chrome.runtime.sendMessage({ type: 'UPDATE_WORD', word: updated });
+    onDataChange();
     advance();
   };
 
@@ -66,6 +69,7 @@ export default function ReviewView({ settings }: ReviewViewProps) {
     const updated = { ...currentWord, sr: newSR };
     await chrome.runtime.sendMessage({ type: 'UPDATE_WORD', word: updated });
     setWords((prev) => [...prev, updated]);
+    onDataChange();
     advance(words.length + 1);
   };
 

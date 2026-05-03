@@ -40,6 +40,7 @@ export default function App() {
   const [tab, setTab] = useState<Tab>('today');
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [searchQuery, setSearchQuery] = useState('');
+  const [dataVersion, setDataVersion] = useState(0);
 
   useEffect(() => {
     chrome.runtime.sendMessage({ type: 'GET_SETTINGS' }).then((res) => {
@@ -73,6 +74,24 @@ export default function App() {
     query.addEventListener('change', handleChange);
     return () => query.removeEventListener('change', handleChange);
   }, [applyTheme, settings.darkMode]);
+
+  useEffect(() => {
+    const handleStorageChange = (
+      changes: { [key: string]: chrome.storage.StorageChange },
+      areaName: string
+    ) => {
+      if (areaName === 'local' && changes.wordmark_words) {
+        setDataVersion((version) => version + 1);
+      }
+    };
+
+    chrome.storage?.onChanged?.addListener(handleStorageChange);
+    return () => chrome.storage?.onChanged?.removeListener(handleStorageChange);
+  }, []);
+
+  const notifyDataChanged = useCallback(() => {
+    setDataVersion((version) => version + 1);
+  }, []);
 
   const handleSettingsChange = useCallback(
     (newSettings: Settings) => {
@@ -142,15 +161,34 @@ export default function App() {
       {/* Stats bar (only on today/history) */}
       {(tab === 'today' || tab === 'history') && (
         <div className="flex-shrink-0">
-          <StatsBar />
+          <StatsBar refreshKey={dataVersion} />
         </div>
       )}
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto">
-        {tab === 'today' && <TodayView searchQuery={searchQuery} settings={settings} />}
-        {tab === 'history' && <HistoryView searchQuery={searchQuery} settings={settings} />}
-        {tab === 'review' && <ReviewView settings={settings} />}
+        {tab === 'today' && (
+          <TodayView
+            searchQuery={searchQuery}
+            settings={settings}
+            refreshKey={dataVersion}
+            onDataChange={notifyDataChanged}
+          />
+        )}
+        {tab === 'history' && (
+          <HistoryView
+            searchQuery={searchQuery}
+            settings={settings}
+            refreshKey={dataVersion}
+            onDataChange={notifyDataChanged}
+          />
+        )}
+        {tab === 'review' && (
+          <ReviewView
+            settings={settings}
+            onDataChange={notifyDataChanged}
+          />
+        )}
         {tab === 'settings' && (
           <SettingsView settings={settings} onSettingsChange={handleSettingsChange} />
         )}
