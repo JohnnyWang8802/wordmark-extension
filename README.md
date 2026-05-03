@@ -24,7 +24,7 @@ It is designed for learners who want to save words in context instead of copying
 
 | AI lookup settings |
 | --- |
-| ![WordMark AI settings](docs/images/settings-ai.svg) |
+| ![WordMark AI settings](docs/images/settings-ai.png) |
 
 ## Manual Installation
 
